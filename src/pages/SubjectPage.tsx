@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Layers, FileText, Trash2, ChevronRight, Zap, Pencil, Check, X, MoreVertical } from 'lucide-react';
+import { Plus, Layers, FileText, ChevronRight, Zap, Pencil, Check, X, MoreVertical } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { generateFlashcards, generateSummary } from '../lib/ai';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
@@ -32,7 +32,6 @@ export default function SubjectPage() {
   const renameSetRef = useRef<HTMLInputElement>(null);
 
   const [openMenuSetId, setOpenMenuSetId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -97,12 +96,6 @@ export default function SubjectPage() {
     setShowFCModal(false);
     setFCTitle('');
     navigate(`/subject/${id}/flashcards/${newSet.id}/edit`);
-  }
-
-  async function deleteFlashcardSet(setId: string) {
-    setConfirmDeleteId(null);
-    setFlashcardSets((prev) => prev.filter((f) => f.id !== setId));
-    await storage.deleteFlashcardSet(setId);
   }
 
   function startRenameSet(setId: string, currentTitle: string, e: React.MouseEvent) {
@@ -243,13 +236,6 @@ export default function SubjectPage() {
                           <Pencil size={13} />
                           Rename
                         </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setOpenMenuSetId(null); setConfirmDeleteId(set.id); }}
-                          className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors"
-                        >
-                          <Trash2 size={13} />
-                          Delete
-                        </button>
                       </div>
                     )}
                     <ChevronRight size={18} className="text-white/30" />
@@ -295,34 +281,6 @@ export default function SubjectPage() {
                   <p className="text-white/25 text-sm">Summary will appear here</p>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmDeleteId && (
-        <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={(e) => e.target === e.currentTarget && setConfirmDeleteId(null)}
-        >
-          <div className="bg-[#1a1a24] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
-            <h2 className="text-white font-semibold text-lg mb-2">Delete set?</h2>
-            <p className="text-white/50 text-sm mb-6">
-              "{flashcardSets.find((s) => s.id === confirmDeleteId)?.title}" and all its cards will be permanently deleted.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDeleteId(null)}
-                className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/60 hover:text-white transition-all text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteFlashcardSet(confirmDeleteId)}
-                className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium text-sm transition-colors"
-              >
-                Delete
-              </button>
             </div>
           </div>
         </div>

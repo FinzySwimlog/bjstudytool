@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, RotateCcw, Star, Trophy, Brain, Pencil, RefreshCw, Shuffle, Expand, Shrink, ArrowLeftRight, MoreVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw, Star, Trophy, Brain, Pencil, RefreshCw, Shuffle, Expand, Shrink, ArrowLeftRight, MoreVertical, Trash2 } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { generateQuizQuestions } from '../lib/ai';
 import type { FlashcardSet, QuizQuestion, Flashcard } from '../types';
@@ -30,6 +30,7 @@ export default function FlashcardsPage() {
   const [trickyOnly, setTrickyOnly] = useState(false);
   const [swapped, setSwapped] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('study');
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -74,6 +75,12 @@ export default function FlashcardsPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  async function deleteSet() {
+    setConfirmDelete(false);
+    await storage.deleteFlashcardSet(setId!);
+    navigate(`/subject/${id}`);
+  }
 
   async function saveSet(updated: FlashcardSet) {
     setSet(updated);
@@ -323,6 +330,14 @@ export default function FlashcardsPage() {
                     <RotateCcw size={15} /> Back to Study
                   </button>
                 )}
+                <div className="border-t border-white/10">
+                  <button
+                    onClick={() => { setConfirmDelete(true); setShowMenu(false); }}
+                    className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors"
+                  >
+                    <Trash2 size={15} /> Delete Set
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -428,6 +443,34 @@ export default function FlashcardsPage() {
           </div>
         )}
       </div>
+
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={(e) => e.target === e.currentTarget && setConfirmDelete(false)}
+        >
+          <div className="bg-[#1a1a24] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+            <h2 className="text-white font-semibold text-lg mb-2">Delete set?</h2>
+            <p className="text-white/50 text-sm mb-6">
+              "{set.title}" and all its cards will be permanently deleted.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/60 hover:text-white transition-all text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteSet}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium text-sm transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
