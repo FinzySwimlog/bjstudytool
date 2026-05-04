@@ -27,16 +27,16 @@ export default function EditFlashcardsPage() {
   const [aiError, setAIError] = useState('');
 
   useEffect(() => {
-    const found = storage.getFlashcardSets().find((s) => s.id === setId);
-    if (!found) { navigate(`/subject/${id}`); return; }
-    setSet(found);
+    storage.getFlashcardSets(id).then((sets) => {
+      const found = sets.find((s) => s.id === setId);
+      if (!found) { navigate(`/subject/${id}`); return; }
+      setSet(found);
+    });
   }, [setId, id, navigate]);
 
-  function persist(updated: FlashcardSet) {
+  async function persist(updated: FlashcardSet) {
     setSet(updated);
-    storage.saveFlashcardSets(
-      storage.getFlashcardSets().map((s) => (s.id === setId ? updated : s))
-    );
+    await storage.updateFlashcardSet(updated);
   }
 
   function startEdit(card: Flashcard) {

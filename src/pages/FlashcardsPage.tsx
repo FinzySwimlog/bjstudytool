@@ -41,10 +41,12 @@ export default function FlashcardsPage() {
   const [quizError, setQuizError] = useState('');
 
   useEffect(() => {
-    const found = storage.getFlashcardSets().find((s) => s.id === setId);
-    if (!found) { navigate(`/subject/${id}`); return; }
-    setSet(found);
-    setDisplayCards(found.cards);
+    storage.getFlashcardSets(id).then((sets) => {
+      const found = sets.find((s) => s.id === setId);
+      if (!found) { navigate(`/subject/${id}`); return; }
+      setSet(found);
+      setDisplayCards(found.cards);
+    });
   }, [setId, id, navigate]);
 
   const handleKey = useCallback((e: KeyboardEvent) => {
@@ -60,11 +62,9 @@ export default function FlashcardsPage() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [handleKey]);
 
-  function saveSet(updated: FlashcardSet) {
+  async function saveSet(updated: FlashcardSet) {
     setSet(updated);
-    storage.saveFlashcardSets(
-      storage.getFlashcardSets().map((s) => (s.id === setId ? updated : s))
-    );
+    await storage.updateFlashcardSet(updated);
   }
 
   function toggleShuffle() {

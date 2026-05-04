@@ -18,13 +18,15 @@ export default function OralPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    const found = storage.getOralSessions().find((s) => s.id === sessionId);
-    if (!found) { navigate(`/subject/${id}`); return; }
-    setSession(found);
-    setMessages(found.messages);
-    if (found.messages.length === 0) {
-      kickoffSession(found);
-    }
+    storage.getOralSessions(id).then((sessions) => {
+      const found = sessions.find((s) => s.id === sessionId);
+      if (!found) { navigate(`/subject/${id}`); return; }
+      setSession(found);
+      setMessages(found.messages);
+      if (found.messages.length === 0) {
+        kickoffSession(found);
+      }
+    });
   }, [sessionId]);
 
   useEffect(() => {
@@ -57,10 +59,8 @@ export default function OralPage() {
     }
   }
 
-  function saveMessages(s: OralSession, msgs: OralMessage[]) {
-    const all = storage.getOralSessions();
-    const updated = all.map((o) => o.id === s.id ? { ...o, messages: msgs } : o);
-    storage.saveOralSessions(updated);
+  async function saveMessages(s: OralSession, msgs: OralMessage[]) {
+    await storage.updateOralSession({ ...s, messages: msgs });
   }
 
   async function sendMessage() {
@@ -101,12 +101,10 @@ export default function OralPage() {
     }
   }
 
-  function resetSession() {
+  async function resetSession() {
     if (!session) return;
     setMessages([]);
-    const all = storage.getOralSessions();
-    const updated = all.map((o) => o.id === session.id ? { ...o, messages: [] } : o);
-    storage.saveOralSessions(updated);
+    await storage.updateOralSession({ ...session, messages: [] });
     kickoffSession(session);
   }
 

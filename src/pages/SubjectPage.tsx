@@ -41,12 +41,19 @@ export default function SubjectPage() {
   const renameSetRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const subjects = storage.getSubjects();
-    const found = subjects.find((s) => s.id === id);
-    if (!found) { navigate('/'); return; }
-    setSubject(found);
-    setFlashcardSets(storage.getFlashcardSets().filter((f) => f.subjectId === id));
-    setOralSessions(storage.getOralSessions().filter((o) => o.subjectId === id));
+    async function load() {
+      const subjects = await storage.getSubjects();
+      const found = subjects.find((s) => s.id === id);
+      if (!found) { navigate('/'); return; }
+      setSubject(found);
+      const [sets, sessions] = await Promise.all([
+        storage.getFlashcardSets(id),
+        storage.getOralSessions(id),
+      ]);
+      setFlashcardSets(sets);
+      setOralSessions(sessions);
+    }
+    load();
   }, [id, navigate]);
 
   async function createFlashcardSet() {
@@ -62,10 +69,8 @@ export default function SubjectPage() {
         cards,
         createdAt: Date.now(),
       };
-      const all = storage.getFlashcardSets();
-      const updated = [...all, newSet];
-      storage.saveFlashcardSets(updated);
-      setFlashcardSets(updated.filter((f) => f.subjectId === id));
+      await storage.createFlashcardSet(newSet);
+      setFlashcardSets((prev) => [...prev, newSet]);
       setShowFCModal(false);
       setFCTitle('');
       setFCContent('');
@@ -77,7 +82,7 @@ export default function SubjectPage() {
     }
   }
 
-  function createEmptySet() {
+  async function createEmptySet() {
     if (!fcTitle.trim()) return;
     const newSet: FlashcardSet = {
       id: crypto.randomUUID(),
@@ -86,21 +91,18 @@ export default function SubjectPage() {
       cards: [],
       createdAt: Date.now(),
     };
-    const all = storage.getFlashcardSets();
-    storage.saveFlashcardSets([...all, newSet]);
+    await storage.createFlashcardSet(newSet);
     setShowFCModal(false);
     setFCTitle('');
     navigate(`/subject/${id}/flashcards/${newSet.id}/edit`);
   }
 
-  function deleteFlashcardSet(setId: string) {
-    const all = storage.getFlashcardSets();
-    const updated = all.filter((f) => f.id !== setId);
-    storage.saveFlashcardSets(updated);
-    setFlashcardSets(updated.filter((f) => f.subjectId === id));
+  async function deleteFlashcardSet(setId: string) {
+    setFlashcardSets((prev) => prev.filter((f) => f.id !== setId));
+    await storage.deleteFlashcardSet(setId);
   }
 
-  function createOralSession() {
+  async function createOralSession() {
     if (!oralTitle.trim() || !oralTopic.trim()) return;
     const session: OralSession = {
       id: crypto.randomUUID(),
@@ -111,10 +113,8 @@ export default function SubjectPage() {
       messages: [],
       createdAt: Date.now(),
     };
-    const all = storage.getOralSessions();
-    const updated = [...all, session];
-    storage.saveOralSessions(updated);
-    setOralSessions(updated.filter((o) => o.subjectId === id));
+    await storage.createOralSession(session);
+    setOralSessions((prev) => [...prev, session]);
     setShowOralModal(false);
     setOralTitle('');
     setOralTopic('');
@@ -128,20 +128,19 @@ export default function SubjectPage() {
     setTimeout(() => renameSetRef.current?.focus(), 0);
   }
 
-  function commitRenameSet(setId: string) {
+  async function commitRenameSet(setId: string) {
     if (!renameSetValue.trim()) { setRenamingSetId(null); return; }
-    const all = storage.getFlashcardSets();
-    const updated = all.map((s) => s.id === setId ? { ...s, title: renameSetValue.trim() } : s);
-    storage.saveFlashcardSets(updated);
-    setFlashcardSets(updated.filter((f) => f.subjectId === id));
+    const target = flashcardSets.find((s) => s.id === setId);
+    if (!target) return;
+    const updated = { ...target, title: renameSetValue.trim() };
+    setFlashcardSets((prev) => prev.map((s) => s.id === setId ? updated : s));
     setRenamingSetId(null);
+    await storage.updateFlashcardSet(updated);
   }
 
-  function deleteOralSession(sessionId: string) {
-    const all = storage.getOralSessions();
-    const updated = all.filter((o) => o.id !== sessionId);
-    storage.saveOralSessions(updated);
-    setOralSessions(updated.filter((o) => o.subjectId === id));
+  async function deleteOralSession(sessionId: string) {
+    setOralSessions((prev) => prev.filter((o) => o.id !== sessionId));
+    await storage.deleteOralSession(sessionId);
   }
 
   async function runSummary() {

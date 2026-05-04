@@ -1,30 +1,29 @@
 import type { Subject, FlashcardSet, OralSession } from '../types';
 
-const KEYS = {
-  subjects: 'study_subjects',
-  flashcardSets: 'study_flashcard_sets',
-  oralSessions: 'study_oral_sessions',
-};
-
-function load<T>(key: string): T[] {
-  try {
-    return JSON.parse(localStorage.getItem(key) || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function save<T>(key: string, data: T[]): void {
-  localStorage.setItem(key, JSON.stringify(data));
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
 }
 
 export const storage = {
-  getSubjects: (): Subject[] => load<Subject>(KEYS.subjects),
-  saveSubjects: (s: Subject[]) => save(KEYS.subjects, s),
+  getSubjects: () => request<Subject[]>('/subjects'),
+  createSubject: (s: Subject) => request<void>('/subjects', { method: 'POST', body: JSON.stringify(s) }),
+  updateSubject: (s: Subject) => request<void>('/subjects', { method: 'PUT', body: JSON.stringify(s) }),
+  deleteSubject: (id: string) => request<void>(`/subjects?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
-  getFlashcardSets: (): FlashcardSet[] => load<FlashcardSet>(KEYS.flashcardSets),
-  saveFlashcardSets: (s: FlashcardSet[]) => save(KEYS.flashcardSets, s),
+  getFlashcardSets: (subjectId?: string) =>
+    request<FlashcardSet[]>(`/flashcard-sets${subjectId ? `?subjectId=${encodeURIComponent(subjectId)}` : ''}`),
+  createFlashcardSet: (s: FlashcardSet) => request<void>('/flashcard-sets', { method: 'POST', body: JSON.stringify(s) }),
+  updateFlashcardSet: (s: FlashcardSet) => request<void>('/flashcard-sets', { method: 'PUT', body: JSON.stringify(s) }),
+  deleteFlashcardSet: (id: string) => request<void>(`/flashcard-sets?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
-  getOralSessions: (): OralSession[] => load<OralSession>(KEYS.oralSessions),
-  saveOralSessions: (s: OralSession[]) => save(KEYS.oralSessions, s),
+  getOralSessions: (subjectId?: string) =>
+    request<OralSession[]>(`/oral-sessions${subjectId ? `?subjectId=${encodeURIComponent(subjectId)}` : ''}`),
+  createOralSession: (s: OralSession) => request<void>('/oral-sessions', { method: 'POST', body: JSON.stringify(s) }),
+  updateOralSession: (s: OralSession) => request<void>('/oral-sessions', { method: 'PUT', body: JSON.stringify(s) }),
+  deleteOralSession: (id: string) => request<void>(`/oral-sessions?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };

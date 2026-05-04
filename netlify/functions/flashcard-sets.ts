@@ -1,0 +1,51 @@
+import { neon } from '@neondatabase/serverless';
+import type { Handler } from '@netlify/functions';
+
+const sql = neon(process.env.DATABASE_URL!);
+
+export const handler: Handler = async (event) => {
+  const headers = { 'Content-Type': 'application/json' };
+  try {
+    if (event.httpMethod === 'GET') {
+      const subjectId = event.queryStringParameters?.subjectId;
+      const rows = subjectId
+        ? await sql`
+            SELECT id, subject_id as "subjectId", title, cards, quiz, created_at as "createdAt"
+            FROM flashcard_sets WHERE subject_id = ${subjectId} ORDER BY created_at ASC
+          `
+        : await sql`
+            SELECT id, subject_id as "subjectId", title, cards, quiz, created_at as "createdAt"
+            FROM flashcard_sets ORDER BY created_at ASC
+          `;
+      return { statusCode: 200, headers, body: JSON.stringify(rows) };
+    }
+
+    if (event.httpMethod === 'POST') {
+      const { id, subjectId, title, cards, quiz, createdAt } = JSON.parse(event.body!);
+      await sql`
+        INSERT INTO flashcard_sets (id, subject_id, title, cards, quiz, created_at)
+        VALUES (${id}, ${subjectId}, ${title}, ${JSON.stringify(cards)}, ${quiz ? JSON.stringify(quiz) : null}, ${createdAt})
+      `;
+      return { statusCode: 201, headers, body: JSON.stringify({ id }) };
+    }
+
+    if (event.httpMethod === 'PUT') {
+      const { id, title, cards, quiz } = JSON.parse(event.body!);
+      await sql`
+        UPDATE flashcard_sets SET title = ${title}, cards = ${JSON.stringify(cards)}, quiz = ${quiz ? JSON.stringify(quiz) : null}
+        WHERE id = ${id}
+      `;
+      return { statusCode: 200, headers, body: JSON.stringify({ id }) };
+    }
+
+    if (event.httpMethod === 'DELETE') {
+      const id = event.queryStringParameters?.id;
+      await sql`DELETE FROM flashcard_sets WHERE id = ${id}`;
+      return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
+    }
+
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+  } catch (err) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: String(err) }) };
+  }
+};

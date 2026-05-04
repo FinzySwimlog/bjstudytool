@@ -26,14 +26,14 @@ export default function Home() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setSubjects(storage.getSubjects());
+    storage.getSubjects().then(setSubjects);
   }, []);
 
   useEffect(() => {
     if (renamingId) renameRef.current?.focus();
   }, [renamingId]);
 
-  function addSubject() {
+  async function addSubject() {
     if (!title.trim()) return;
     const newSubject: Subject = {
       id: crypto.randomUUID(),
@@ -42,19 +42,17 @@ export default function Home() {
       color,
       createdAt: Date.now(),
     };
-    const updated = [...subjects, newSubject];
-    setSubjects(updated);
-    storage.saveSubjects(updated);
+    setSubjects((prev) => [...prev, newSubject]);
     setTitle('');
     setColor(COLORS[0]);
     setShowModal(false);
+    await storage.createSubject(newSubject);
   }
 
-  function deleteSubject(id: string, e: React.MouseEvent) {
+  async function deleteSubject(id: string, e: React.MouseEvent) {
     e.stopPropagation();
-    const updated = subjects.filter((s) => s.id !== id);
-    setSubjects(updated);
-    storage.saveSubjects(updated);
+    setSubjects((prev) => prev.filter((s) => s.id !== id));
+    await storage.deleteSubject(id);
   }
 
   function startRename(subject: Subject, e: React.MouseEvent) {
@@ -63,14 +61,15 @@ export default function Home() {
     setRenameValue(subject.title);
   }
 
-  function commitRename(id: string) {
+  async function commitRename(id: string) {
     if (!renameValue.trim()) { setRenamingId(null); return; }
     const updated = subjects.map((s) =>
       s.id === id ? { ...s, title: renameValue.trim() } : s
     );
     setSubjects(updated);
-    storage.saveSubjects(updated);
     setRenamingId(null);
+    const subject = updated.find((s) => s.id === id)!;
+    await storage.updateSubject(subject);
   }
 
   return (
