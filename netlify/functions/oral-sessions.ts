@@ -1,10 +1,21 @@
 import { neon } from '@neondatabase/serverless';
 import type { Handler } from '@netlify/functions';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 const sql = neon(process.env.DATABASE_URL!);
 
+function authorized(event: Parameters<Handler>[0]): boolean {
+  const token = (event.headers['authorization'] ?? '').replace('Bearer ', '');
+  const [timestamp, sig] = token.split('.');
+  if (!timestamp || !sig) return false;
+  if (Date.now() - parseInt(timestamp, 10) > 30 * 24 * 60 * 60 * 1000) return false;
+  const expected = createHmac('sha256', process.env.APP_SECRET!).update(timestamp).digest('hex');
+  try { return timingSafeEqual(Buffer.from(sig), Buffer.from(expected)); } catch { return false; }
+}
+
 export const handler: Handler = async (event) => {
   const headers = { 'Content-Type': 'application/json' };
+  if (!authorized(event)) return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
   try {
     if (event.httpMethod === 'GET') {
       const subjectId = event.queryStringParameters?.subjectId;

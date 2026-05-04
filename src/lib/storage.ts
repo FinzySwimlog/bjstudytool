@@ -1,9 +1,14 @@
 import type { Subject, FlashcardSet, OralSession } from '../types';
+import { session } from './session';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.get()}`,
+      ...options?.headers,
+    },
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
