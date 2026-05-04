@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Layers, FileText, Trash2, ChevronRight, Zap, Pencil, Check, X } from 'lucide-react';
+import { Plus, Layers, FileText, Trash2, ChevronRight, Zap, Pencil, Check, X, MoreVertical } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { generateFlashcards, generateSummary } from '../lib/ai';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
@@ -30,6 +30,21 @@ export default function SubjectPage() {
   const [renamingSetId, setRenamingSetId] = useState<string | null>(null);
   const [renameSetValue, setRenameSetValue] = useState('');
   const renameSetRef = useRef<HTMLInputElement>(null);
+
+  const [openMenuSetId, setOpenMenuSetId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openMenuSetId) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuSetId(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [openMenuSetId]);
 
   const load = useCallback(async () => {
     const subjects = await storage.getSubjects();
@@ -85,6 +100,7 @@ export default function SubjectPage() {
   }
 
   async function deleteFlashcardSet(setId: string) {
+    setConfirmDeleteId(null);
     setFlashcardSets((prev) => prev.filter((f) => f.id !== setId));
     await storage.deleteFlashcardSet(setId);
   }
@@ -208,19 +224,34 @@ export default function SubjectPage() {
                     )}
                     <p className="text-white/40 text-sm mt-0.5">{set.cards.length} cards · {new Date(set.createdAt).toLocaleDateString()}</p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="relative flex items-center gap-1 shrink-0">
                     <button
-                      onClick={(e) => startRenameSet(set.id, set.title, e)}
-                      className="p-1.5 rounded-lg text-white/30 hover:text-white opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={(e) => { e.stopPropagation(); setOpenMenuSetId(openMenuSetId === set.id ? null : set.id); }}
+                      className="p-2 rounded-lg text-white/40 hover:text-white transition-colors"
                     >
-                      <Pencil size={14} />
+                      <MoreVertical size={16} />
                     </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); deleteFlashcardSet(set.id); }}
-                      className="p-1.5 rounded-lg text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {openMenuSetId === set.id && (
+                      <div
+                        ref={menuRef}
+                        className="absolute right-8 top-0 z-20 bg-[#1a1a24] border border-white/10 rounded-xl shadow-xl overflow-hidden w-36"
+                      >
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setOpenMenuSetId(null); startRenameSet(set.id, set.title, e); }}
+                          className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                        >
+                          <Pencil size={13} />
+                          Rename
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setOpenMenuSetId(null); setConfirmDeleteId(set.id); }}
+                          className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors"
+                        >
+                          <Trash2 size={13} />
+                          Delete
+                        </button>
+                      </div>
+                    )}
                     <ChevronRight size={18} className="text-white/30" />
                   </div>
                 </div>
@@ -264,6 +295,34 @@ export default function SubjectPage() {
                   <p className="text-white/25 text-sm">Summary will appear here</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteId && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={(e) => e.target === e.currentTarget && setConfirmDeleteId(null)}
+        >
+          <div className="bg-[#1a1a24] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+            <h2 className="text-white font-semibold text-lg mb-2">Delete set?</h2>
+            <p className="text-white/50 text-sm mb-6">
+              "{flashcardSets.find((s) => s.id === confirmDeleteId)?.title}" and all its cards will be permanently deleted.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/60 hover:text-white transition-all text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteFlashcardSet(confirmDeleteId)}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium text-sm transition-colors"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
