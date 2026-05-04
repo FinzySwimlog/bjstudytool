@@ -1,0 +1,24 @@
+import { Routes, Route } from 'react-router-dom';
+import Home from './pages/Home';
+import SubjectPage from './pages/SubjectPage';
+import FlashcardsPage from './pages/FlashcardsPage';
+import EditFlashcardsPage from './pages/EditFlashcardsPage';
+import OralPage from './pages/OralPage';
+import SettingsPage from './pages/SettingsPage';
+import Navbar from './components/Navbar';
+
+export default function App() {
+  return (
+    <div className="min-h-screen bg-[#0f0f13]">
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/subject/:id" element={<SubjectPage />} />
+        <Route path="/subject/:id/flashcards/:setId" element={<FlashcardsPage />} />
+        <Route path="/subject/:id/flashcards/:setId/edit" element={<EditFlashcardsPage />} />
+        <Route path="/subject/:id/oral/:sessionId" element={<OralPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+      </Routes>
+    </div>
+  );
+}
