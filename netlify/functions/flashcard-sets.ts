@@ -32,11 +32,14 @@ export const handler: Handler = async (event) => {
     }
 
     if (event.httpMethod === 'POST') {
-      const { id, subjectId, title, cards, quiz, createdAt } = JSON.parse(event.body!);
+      const body = JSON.parse(event.body!);
+      const { id, subjectId, title, cards, quiz, createdAt } = body;
+      console.log('[flashcard-sets POST] received:', { id, subjectId, title, cardCount: cards?.length, createdAt });
       await sql`
         INSERT INTO flashcard_sets (id, subject_id, title, cards, quiz, created_at)
         VALUES (${id}, ${subjectId}, ${title}, ${JSON.stringify(cards)}, ${quiz ? JSON.stringify(quiz) : null}, ${createdAt})
       `;
+      console.log('[flashcard-sets POST] insert succeeded for id:', id);
       return { statusCode: 201, headers, body: JSON.stringify({ id }) };
     }
 
@@ -57,6 +60,7 @@ export const handler: Handler = async (event) => {
 
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
   } catch (err) {
+    console.error('[flashcard-sets] error:', err);
     return { statusCode: 500, headers, body: JSON.stringify({ error: String(err) }) };
   }
 };
