@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, RotateCcw, Star, Trophy, Brain, Pencil, RefreshCw, Shuffle, Expand, Shrink, ArrowLeftRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw, Star, Trophy, Brain, Pencil, RefreshCw, Shuffle, Expand, Shrink, ArrowLeftRight, MoreVertical } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { generateQuizQuestions } from '../lib/ai';
 import type { FlashcardSet, QuizQuestion, Flashcard } from '../types';
@@ -29,6 +29,8 @@ export default function FlashcardsPage() {
   const [shuffled, setShuffled] = useState(false);
   const [trickyOnly, setTrickyOnly] = useState(false);
   const [swapped, setSwapped] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('study');
   const [currentIdx, setCurrentIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -62,6 +64,16 @@ export default function FlashcardsPage() {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [handleKey]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   async function saveSet(updated: FlashcardSet) {
     setSet(updated);
@@ -178,7 +190,7 @@ export default function FlashcardsPage() {
   );
 
   const ProgressBar = () => (
-    <div className="flex gap-1 flex-1">
+    <div className="flex gap-1 w-full mb-4">
       {displayCards.map((c, i) => (
         <div
           key={c.id}
@@ -190,11 +202,11 @@ export default function FlashcardsPage() {
     </div>
   );
 
-  const ToolbarBtns = () => (
-    <>
+  const Filters = () => (
+    <div className="flex gap-2 mb-4">
       <button
         onClick={toggleShuffle}
-        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all shrink-0 ${shuffled ? 'bg-violet-600/30 text-violet-300 border border-violet-500/40' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${shuffled ? 'bg-violet-600/30 text-violet-300 border border-violet-500/40' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}
       >
         <Shuffle size={13} />
         {shuffled ? 'Shuffled' : 'Shuffle'}
@@ -202,19 +214,19 @@ export default function FlashcardsPage() {
       <button
         onClick={toggleTrickyOnly}
         disabled={trickyCount === 0 && !trickyOnly}
-        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all shrink-0 ${trickyOnly ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-white/5 text-white/40 hover:text-white border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed'}`}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${trickyOnly ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-white/5 text-white/40 hover:text-white border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed'}`}
       >
         <Star size={13} className={trickyOnly ? 'fill-amber-300 text-amber-300' : ''} />
         Tricky{trickyCount > 0 ? ` (${trickyCount})` : ''}
       </button>
       <button
         onClick={() => { setSwapped((s) => !s); setFlipped(false); }}
-        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all shrink-0 ${swapped ? 'bg-violet-600/30 text-violet-300 border border-violet-500/40' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${swapped ? 'bg-violet-600/30 text-violet-300 border border-violet-500/40' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}
       >
         <ArrowLeftRight size={13} />
         Swap
       </button>
-    </>
+    </div>
   );
 
   return (
@@ -229,38 +241,21 @@ export default function FlashcardsPage() {
           >
             <Shrink size={16} />
           </button>
-
           <div className="w-full max-w-3xl px-8">
-            <div className="flex items-center gap-3 mb-6">
-              <ProgressBar />
-              <ToolbarBtns />
-            </div>
-
+            <ProgressBar />
             <CardFace tall />
-
             <div className="flex items-center justify-between mt-6">
-              <button
-                onClick={prev}
-                disabled={currentIdx === 0}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white text-sm transition-all"
-              >
+              <button onClick={prev} disabled={currentIdx === 0} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white text-sm transition-all">
                 <ChevronLeft size={16} /> Prev
               </button>
               <div className="flex items-center gap-4">
                 <span className="text-white/40 text-sm">{currentIdx + 1} / {displayCards.length}</span>
-                <button
-                  onClick={toggleTricky}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all ${card.tricky ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}
-                >
+                <button onClick={toggleTricky} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all ${card.tricky ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}>
                   <Star size={14} className={card.tricky ? 'fill-amber-300 text-amber-300' : ''} />
                   Tricky
                 </button>
               </div>
-              <button
-                onClick={next}
-                disabled={currentIdx === displayCards.length - 1}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white text-sm transition-all"
-              >
+              <button onClick={next} disabled={currentIdx === displayCards.length - 1} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white text-sm transition-all">
                 Next <ChevronRight size={16} />
               </button>
             </div>
@@ -268,66 +263,67 @@ export default function FlashcardsPage() {
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-6 py-10">
+      <div className="max-w-3xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <button
-              onClick={() => navigate(`/subject/${id}`)}
-              className="text-white/40 hover:text-white text-sm mb-2 transition-colors"
-            >
-              ← Back
-            </button>
-            <h1 className="text-2xl font-bold text-white">{set.title}</h1>
+        <div className="flex items-start justify-between gap-3 mb-6">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-white leading-snug">{set.title}</h1>
             <p className="text-white/40 text-sm mt-0.5">
               {set.cards.length} cards{trickyCount > 0 ? ` · ${trickyCount} tricky` : ''}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Burger menu */}
+          <div className="relative shrink-0" ref={menuRef}>
             <button
-              onClick={() => { setFocusMode(true); setFlipped(false); }}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              onClick={() => setShowMenu((s) => !s)}
+              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
             >
-              <Expand size={15} />
-              Focus
+              <MoreVertical size={18} />
             </button>
-            <button
-              onClick={() => navigate(`/subject/${id}/flashcards/${setId}/edit`)}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              <Pencil size={15} />
-              Edit Set
-            </button>
-            {mode === 'study' && (
-              <div className="flex items-center gap-1">
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-[#1a1a24] border border-white/10 rounded-xl shadow-xl z-20 overflow-hidden">
                 <button
-                  onClick={() => loadQuiz(false)}
-                  disabled={quizLoading}
-                  className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  onClick={() => { setFocusMode(true); setFlipped(false); setShowMenu(false); }}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
                 >
-                  <Brain size={15} />
-                  {quizLoading ? 'Loading...' : hasSavedQuiz ? 'Take Quiz' : 'Generate Quiz'}
+                  <Expand size={15} /> Focus Mode
                 </button>
-                {hasSavedQuiz && (
+                <button
+                  onClick={() => { navigate(`/subject/${id}/flashcards/${setId}/edit`); setShowMenu(false); }}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  <Pencil size={15} /> Edit Set
+                </button>
+                {mode === 'study' && (
+                  <>
+                    <button
+                      onClick={() => { loadQuiz(false); setShowMenu(false); }}
+                      disabled={quizLoading}
+                      className="flex items-center gap-3 w-full px-4 py-3 text-sm text-amber-400 hover:text-amber-300 hover:bg-white/5 transition-colors disabled:opacity-50"
+                    >
+                      <Brain size={15} /> {hasSavedQuiz ? 'Take Quiz' : 'Generate Quiz'}
+                    </button>
+                    {hasSavedQuiz && (
+                      <button
+                        onClick={() => { loadQuiz(true); setShowMenu(false); }}
+                        disabled={quizLoading}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw size={15} /> Regenerate Quiz
+                      </button>
+                    )}
+                  </>
+                )}
+                {mode !== 'study' && (
                   <button
-                    onClick={() => loadQuiz(true)}
-                    disabled={quizLoading}
-                    title="Regenerate quiz"
-                    className="p-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 rounded-lg transition-colors"
+                    onClick={() => { setMode('study'); setCurrentIdx(0); setFlipped(false); setShowMenu(false); }}
+                    className="flex items-center gap-3 w-full px-4 py-3 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
                   >
-                    <RefreshCw size={15} />
+                    <RotateCcw size={15} /> Back to Study
                   </button>
                 )}
               </div>
-            )}
-            {mode !== 'study' && (
-              <button
-                onClick={() => { setMode('study'); setCurrentIdx(0); setFlipped(false); }}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                <RotateCcw size={15} />
-                Back to Study
-              </button>
             )}
           </div>
         </div>
@@ -337,37 +333,35 @@ export default function FlashcardsPage() {
         {/* Study Mode */}
         {mode === 'study' && card && (
           <>
-            <div className="flex items-center gap-3 mb-6">
-              <ProgressBar />
-              <ToolbarBtns />
-            </div>
-
+            <ProgressBar />
+            <Filters />
             <CardFace />
-
-            <div className="flex items-center justify-between mt-6">
+            <div className="flex items-stretch gap-3 mt-4">
               <button
                 onClick={prev}
                 disabled={currentIdx === 0}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white text-sm transition-all"
+                className="flex-1 flex items-center justify-center gap-1 py-4 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all"
               >
-                <ChevronLeft size={16} /> Prev
+                <ChevronLeft size={20} />
+                <span className="text-sm font-medium">Prev</span>
               </button>
-              <div className="flex items-center gap-4">
-                <span className="text-white/40 text-sm">{currentIdx + 1} / {displayCards.length}</span>
+              <div className="flex flex-col items-center justify-center gap-1.5 px-2">
+                <span className="text-white/40 text-xs">{currentIdx + 1} / {displayCards.length}</span>
                 <button
                   onClick={toggleTricky}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all ${card.tricky ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs transition-all ${card.tricky ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}
                 >
-                  <Star size={14} className={card.tricky ? 'fill-amber-300 text-amber-300' : ''} />
-                  {card.tricky ? 'Tricky' : 'Tricky'}
+                  <Star size={11} className={card.tricky ? 'fill-amber-300 text-amber-300' : ''} />
+                  Tricky
                 </button>
               </div>
               <button
                 onClick={next}
                 disabled={currentIdx === displayCards.length - 1}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white text-sm transition-all"
+                className="flex-1 flex items-center justify-center gap-1 py-4 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all"
               >
-                Next <ChevronRight size={16} />
+                <span className="text-sm font-medium">Next</span>
+                <ChevronRight size={20} />
               </button>
             </div>
           </>
@@ -394,11 +388,7 @@ export default function FlashcardsPage() {
                   else cls = 'bg-white/3 border-white/5 text-white/30 cursor-default';
                 }
                 return (
-                  <button
-                    key={option}
-                    onClick={() => selectAnswer(option)}
-                    className={`w-full text-left px-5 py-3.5 rounded-xl border transition-all ${cls}`}
-                  >
+                  <button key={option} onClick={() => selectAnswer(option)} className={`w-full text-left px-5 py-3.5 rounded-xl border transition-all ${cls}`}>
                     {option}
                   </button>
                 );
@@ -406,10 +396,7 @@ export default function FlashcardsPage() {
             </div>
             {quizSelected !== null && (
               <div className="flex justify-end">
-                <button
-                  onClick={nextQuestion}
-                  className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-colors"
-                >
+                <button onClick={nextQuestion} className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-colors">
                   {quizIdx + 1 === quizQuestions.length ? 'See Results' : 'Next Question'}
                 </button>
               </div>
@@ -426,28 +413,15 @@ export default function FlashcardsPage() {
               You scored <span className="text-white font-semibold">{quizScore}</span> out of{' '}
               <span className="text-white font-semibold">{quizQuestions.length}</span>
             </p>
-            <p className="text-white/30 text-sm mb-8">
-              {Math.round((quizScore / quizQuestions.length) * 100)}% correct
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => { setQuizIdx(0); setQuizScore(0); setQuizSelected(null); setMode('quiz'); }}
-                className="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-colors"
-              >
+            <p className="text-white/30 text-sm mb-8">{Math.round((quizScore / quizQuestions.length) * 100)}% correct</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <button onClick={() => { setQuizIdx(0); setQuizScore(0); setQuizSelected(null); setMode('quiz'); }} className="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-colors">
                 Retry Quiz
               </button>
-              <button
-                onClick={() => loadQuiz(true)}
-                disabled={quizLoading}
-                className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
-              >
-                <RefreshCw size={14} />
-                New Quiz
+              <button onClick={() => loadQuiz(true)} disabled={quizLoading} className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-colors flex items-center gap-2">
+                <RefreshCw size={14} /> New Quiz
               </button>
-              <button
-                onClick={() => { setMode('study'); setCurrentIdx(0); setFlipped(false); }}
-                className="bg-white/10 hover:bg-white/15 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-colors"
-              >
+              <button onClick={() => { setMode('study'); setCurrentIdx(0); setFlipped(false); }} className="bg-white/10 hover:bg-white/15 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-colors">
                 Back to Study
               </button>
             </div>
