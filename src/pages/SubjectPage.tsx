@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Layers, MessageCircle, FileText, Trash2, ChevronRight, Zap, Pencil, Check, X } from 'lucide-react';
+import { Plus, Layers, FileText, Trash2, ChevronRight, Zap, Pencil, Check, X } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { generateFlashcards, generateSummary } from '../lib/ai';
-import type { Subject, FlashcardSet, OralSession } from '../types';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import type { Subject, FlashcardSet } from '../types';
 
-type Tab = 'flashcards' | 'oral' | 'summary';
+type Tab = 'flashcards' | 'summary';
 
 export default function SubjectPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,7 +14,6 @@ export default function SubjectPage() {
   const [subject, setSubject] = useState<Subject | null>(null);
   const [tab, setTab] = useState<Tab>('flashcards');
 
-  // Flashcard state
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
   const [showFCModal, setShowFCModal] = useState(false);
   const [fcMode, setFCMode] = useState<'ai' | 'manual'>('ai');
@@ -22,39 +22,26 @@ export default function SubjectPage() {
   const [fcLoading, setFCLoading] = useState(false);
   const [fcError, setFCError] = useState('');
 
-  // Oral state
-  const [oralSessions, setOralSessions] = useState<OralSession[]>([]);
-  const [showOralModal, setShowOralModal] = useState(false);
-  const [oralTitle, setOralTitle] = useState('');
-  const [oralTopic, setOralTopic] = useState('');
-  const [oralLang, setOralLang] = useState('English');
-
-  // Summary state
   const [summaryContent, setSummaryContent] = useState('');
   const [summaryResult, setSummaryResult] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState('');
 
-  // Rename state
   const [renamingSetId, setRenamingSetId] = useState<string | null>(null);
   const [renameSetValue, setRenameSetValue] = useState('');
   const renameSetRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    async function load() {
-      const subjects = await storage.getSubjects();
-      const found = subjects.find((s) => s.id === id);
-      if (!found) { navigate('/'); return; }
-      setSubject(found);
-      const [sets, sessions] = await Promise.all([
-        storage.getFlashcardSets(id),
-        storage.getOralSessions(id),
-      ]);
-      setFlashcardSets(sets);
-      setOralSessions(sessions);
-    }
-    load();
+  const load = useCallback(async () => {
+    const subjects = await storage.getSubjects();
+    const found = subjects.find((s) => s.id === id);
+    if (!found) { navigate('/'); return; }
+    setSubject(found);
+    setFlashcardSets(await storage.getFlashcardSets(id));
   }, [id, navigate]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const refreshing = usePullToRefresh(load);
 
   async function createFlashcardSet() {
     if (!fcTitle.trim() || !fcContent.trim()) return;
@@ -102,25 +89,6 @@ export default function SubjectPage() {
     await storage.deleteFlashcardSet(setId);
   }
 
-  async function createOralSession() {
-    if (!oralTitle.trim() || !oralTopic.trim()) return;
-    const session: OralSession = {
-      id: crypto.randomUUID(),
-      subjectId: id!,
-      title: oralTitle.trim(),
-      topic: oralTopic.trim(),
-      language: oralLang,
-      messages: [],
-      createdAt: Date.now(),
-    };
-    await storage.createOralSession(session);
-    setOralSessions((prev) => [...prev, session]);
-    setShowOralModal(false);
-    setOralTitle('');
-    setOralTopic('');
-    navigate(`/subject/${id}/oral/${session.id}`);
-  }
-
   function startRenameSet(setId: string, currentTitle: string, e: React.MouseEvent) {
     e.stopPropagation();
     setRenamingSetId(setId);
@@ -138,19 +106,13 @@ export default function SubjectPage() {
     await storage.updateFlashcardSet(updated);
   }
 
-  async function deleteOralSession(sessionId: string) {
-    setOralSessions((prev) => prev.filter((o) => o.id !== sessionId));
-    await storage.deleteOralSession(sessionId);
-  }
-
   async function runSummary() {
     if (!summaryContent.trim()) return;
     setSummaryLoading(true);
     setSummaryError('');
     setSummaryResult('');
     try {
-      const result = await generateSummary(summaryContent);
-      setSummaryResult(result);
+      setSummaryResult(await generateSummary(summaryContent));
     } catch (e) {
       setSummaryError(e instanceof Error ? e.message : 'Failed to generate summary');
     } finally {
@@ -162,24 +124,26 @@ export default function SubjectPage() {
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'flashcards', label: 'Flashcards', icon: <Layers size={16} /> },
-    { key: 'oral', label: 'Oral Prep', icon: <MessageCircle size={16} /> },
     { key: 'summary', label: 'Summariser', icon: <FileText size={16} /> },
   ];
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">
-      {/* Header */}
+      {refreshing && (
+        <div className="flex justify-center mb-4">
+          <div className="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
       <div className="flex items-center gap-3 mb-8">
         <div className={`w-1 h-10 rounded-full bg-gradient-to-b ${subject.color} shrink-0`} />
         <div>
           <h1 className="text-3xl font-bold text-white">{subject.title}</h1>
           <p className="text-white/40 text-sm mt-0.5">
-            {flashcardSets.length} flashcard set{flashcardSets.length !== 1 ? 's' : ''} · {oralSessions.length} oral session{oralSessions.length !== 1 ? 's' : ''}
+            {flashcardSets.length} flashcard set{flashcardSets.length !== 1 ? 's' : ''}
           </p>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 bg-white/5 rounded-xl p-1 mb-8 w-fit">
         {tabs.map((t) => (
           <button
@@ -193,7 +157,6 @@ export default function SubjectPage() {
         ))}
       </div>
 
-      {/* Flashcards Tab */}
       {tab === 'flashcards' && (
         <div>
           <div className="flex justify-between items-center mb-5">
@@ -267,56 +230,6 @@ export default function SubjectPage() {
         </div>
       )}
 
-      {/* Oral Prep Tab */}
-      {tab === 'oral' && (
-        <div>
-          <div className="flex justify-between items-center mb-5">
-            <h2 className="text-white font-semibold text-lg">Oral Prep Sessions</h2>
-            <button
-              onClick={() => setShowOralModal(true)}
-              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus size={15} />
-              New Session
-            </button>
-          </div>
-          {oralSessions.length === 0 ? (
-            <div className="text-center py-16 border border-dashed border-white/10 rounded-2xl">
-              <MessageCircle size={40} className="text-white/20 mx-auto mb-3" />
-              <p className="text-white/40 mb-1">No oral sessions yet</p>
-              <p className="text-white/25 text-sm">Practice speaking about topics with AI feedback</p>
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {oralSessions.map((session) => (
-                <div
-                  key={session.id}
-                  onClick={() => navigate(`/subject/${id}/oral/${session.id}`)}
-                  className="group flex items-center justify-between p-4 bg-white/5 border border-white/10 hover:border-violet-500/50 rounded-xl cursor-pointer transition-all"
-                >
-                  <div>
-                    <p className="text-white font-medium">{session.title}</p>
-                    <p className="text-white/40 text-sm mt-0.5">
-                      {session.language !== 'English' ? `${session.language} · ` : ''}{session.topic} · {session.messages.length} messages
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); deleteOralSession(session.id); }}
-                      className="p-1.5 rounded-lg text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                    <ChevronRight size={18} className="text-white/30" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Summary Tab */}
       {tab === 'summary' && (
         <div>
           <h2 className="text-white font-semibold text-lg mb-5">AI Summariser</h2>
@@ -356,7 +269,6 @@ export default function SubjectPage() {
         </div>
       )}
 
-      {/* Flashcard Modal */}
       {showFCModal && (
         <div
           className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -364,7 +276,6 @@ export default function SubjectPage() {
         >
           <div className="bg-[#1a1a24] border border-white/10 rounded-2xl p-6 w-full max-w-lg">
             <h2 className="text-white font-semibold text-xl mb-5">New Flashcard Set</h2>
-
             <div className="mb-4">
               <label className="text-white/60 text-sm mb-1.5 block">Set title</label>
               <input
@@ -375,8 +286,6 @@ export default function SubjectPage() {
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-violet-500 transition-colors"
               />
             </div>
-
-            {/* Mode toggle */}
             <div className="flex gap-1 bg-white/5 rounded-lg p-1 mb-4">
               <button
                 onClick={() => setFCMode('ai')}
@@ -391,7 +300,6 @@ export default function SubjectPage() {
                 Start empty
               </button>
             </div>
-
             {fcMode === 'ai' && (
               <div className="mb-4">
                 <label className="text-white/60 text-sm mb-1.5 block">Paste your content</label>
@@ -404,11 +312,9 @@ export default function SubjectPage() {
                 />
               </div>
             )}
-
             {fcMode === 'manual' && (
               <p className="text-white/30 text-sm mb-4">Creates an empty set — you'll be taken to the editor to add cards manually.</p>
             )}
-
             {fcError && <p className="text-red-400 text-sm mb-3">{fcError}</p>}
             <div className="flex gap-3">
               <button
@@ -435,64 +341,6 @@ export default function SubjectPage() {
                   Create Set
                 </button>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Oral Modal */}
-      {showOralModal && (
-        <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={(e) => e.target === e.currentTarget && setShowOralModal(false)}
-        >
-          <div className="bg-[#1a1a24] border border-white/10 rounded-2xl p-6 w-full max-w-md">
-            <h2 className="text-white font-semibold text-xl mb-5">New Oral Prep Session</h2>
-            <div className="mb-4">
-              <label className="text-white/60 text-sm mb-1.5 block">Session title</label>
-              <input
-                autoFocus
-                value={oralTitle}
-                onChange={(e) => setOralTitle(e.target.value)}
-                placeholder="e.g. World War I Causes"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-violet-500 transition-colors"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="text-white/60 text-sm mb-1.5 block">Topic to be examined on</label>
-              <input
-                value={oralTopic}
-                onChange={(e) => setOralTopic(e.target.value)}
-                placeholder="e.g. The causes of World War I"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-violet-500 transition-colors"
-              />
-            </div>
-            <div className="mb-6">
-              <label className="text-white/60 text-sm mb-1.5 block">Language</label>
-              <select
-                value={oralLang}
-                onChange={(e) => setOralLang(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-violet-500 transition-colors"
-              >
-                {['English', 'French', 'Spanish', 'German', 'Italian', 'Portuguese', 'Irish', 'Mandarin', 'Japanese'].map((l) => (
-                  <option key={l} value={l} className="bg-[#1a1a24]">{l}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowOralModal(false)}
-                className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/60 hover:text-white transition-all text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createOralSession}
-                disabled={!oralTitle.trim() || !oralTopic.trim()}
-                className="flex-1 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors"
-              >
-                Start Session
-              </button>
             </div>
           </div>
         </div>

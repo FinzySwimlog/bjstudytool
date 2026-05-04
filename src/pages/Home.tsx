@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, BookOpen, Pencil, Check, X } from 'lucide-react';
 import { storage } from '../lib/storage';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import type { Subject } from '../types';
 
 const COLORS = [
@@ -25,9 +26,13 @@ export default function Home() {
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    storage.getSubjects().then(setSubjects);
+  const loadSubjects = useCallback(async () => {
+    setSubjects(await storage.getSubjects());
   }, []);
+
+  useEffect(() => { loadSubjects(); }, [loadSubjects]);
+
+  const refreshing = usePullToRefresh(loadSubjects);
 
   useEffect(() => {
     if (renamingId) renameRef.current?.focus();
@@ -74,6 +79,11 @@ export default function Home() {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">
+      {refreshing && (
+        <div className="flex justify-center mb-4">
+          <div className="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white mb-1">My Subjects</h1>
