@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, RotateCcw, Star, Trophy, Brain, Pencil, RefreshCw, Shuffle, Expand, Shrink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw, Star, Trophy, Brain, Pencil, RefreshCw, Shuffle, Expand, Shrink, ArrowLeftRight } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { generateQuizQuestions } from '../lib/ai';
 import type { FlashcardSet, QuizQuestion, Flashcard } from '../types';
@@ -28,6 +28,7 @@ export default function FlashcardsPage() {
   const [displayCards, setDisplayCards] = useState<Flashcard[]>([]);
   const [shuffled, setShuffled] = useState(false);
   const [trickyOnly, setTrickyOnly] = useState(false);
+  const [swapped, setSwapped] = useState(false);
   const [mode, setMode] = useState<Mode>('study');
   const [currentIdx, setCurrentIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -167,10 +168,10 @@ export default function FlashcardsPage() {
         style={{ height: tall ? '360px' : '280px' }}
       >
         <div className="backface-hidden absolute inset-0 bg-[#1a1a24] border border-white/10 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
-          <p className="text-white text-2xl font-semibold">{card.term}</p>
+          <p className="text-white text-2xl font-semibold">{swapped ? card.definition : card.term}</p>
         </div>
         <div className="backface-hidden rotate-y-180 absolute inset-0 bg-violet-900/30 border border-violet-500/30 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
-          <p className="text-white text-lg leading-relaxed">{card.definition}</p>
+          <p className="text-white text-lg leading-relaxed">{swapped ? card.term : card.definition}</p>
         </div>
       </div>
     </div>
@@ -205,6 +206,13 @@ export default function FlashcardsPage() {
       >
         <Star size={13} className={trickyOnly ? 'fill-amber-300 text-amber-300' : ''} />
         Tricky{trickyCount > 0 ? ` (${trickyCount})` : ''}
+      </button>
+      <button
+        onClick={() => { setSwapped((s) => !s); setFlipped(false); }}
+        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all shrink-0 ${swapped ? 'bg-violet-600/30 text-violet-300 border border-violet-500/40' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}
+      >
+        <ArrowLeftRight size={13} />
+        Swap
       </button>
     </>
   );
