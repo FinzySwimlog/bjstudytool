@@ -46,11 +46,14 @@ export default function SubjectPage() {
   }, [openMenuSetId]);
 
   const load = useCallback(async () => {
-    const subjects = await storage.getSubjects();
+    const [subjects, sets] = await Promise.all([
+      storage.getSubjects(),
+      storage.getFlashcardSets(id),
+    ]);
     const found = subjects.find((s) => s.id === id);
     if (!found) { navigate('/'); return; }
     setSubject(found);
-    setFlashcardSets(await storage.getFlashcardSets(id));
+    setFlashcardSets(sets);
   }, [id, navigate]);
 
   useEffect(() => { load(); }, [load]);
