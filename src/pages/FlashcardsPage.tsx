@@ -120,13 +120,13 @@ export default function FlashcardsPage() {
 
   function next() {
     if (!set) return;
+    setCurrentIdx((i) => Math.min(i + 1, displayCards.length - 1));
     setFlipped(false);
-    setTimeout(() => setCurrentIdx((i) => Math.min(i + 1, displayCards.length - 1)), 50);
   }
 
   function prev() {
+    setCurrentIdx((i) => Math.max(i - 1, 0));
     setFlipped(false);
-    setTimeout(() => setCurrentIdx((i) => Math.max(i - 1, 0)), 50);
   }
 
   async function loadQuiz(forceRegenerate = false) {
