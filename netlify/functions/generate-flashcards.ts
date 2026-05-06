@@ -29,7 +29,11 @@ export const handler: Handler = async (event) => {
     max_tokens: 4096,
     messages: [{
       role: 'user',
-      content: `Generate flashcards from the following study content. Return ONLY a valid JSON array of objects with "term" and "definition" fields. No markdown, no explanation, just the JSON array.\n\nContent:\n${content}`,
+      content: `Generate flashcards from the following study content. Return ONLY a valid JSON array of objects with "term" and "definition" fields. No explanation, just the JSON array.
+
+Terms should be concise (a word or short phrase). Definitions can use markdown for clarity — use **bold** for key sub-terms or labels, and numbered or bullet lists when a concept has distinct steps or points. Keep definitions focused and not too long.
+
+Content:\n${content}`,
     }],
   });
 

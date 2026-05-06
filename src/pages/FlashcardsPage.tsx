@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RotateCcw, Star, Trophy, Brain, Pencil, RefreshCw, Shuffle, Expand, Shrink, ArrowLeftRight, MoreVertical, Trash2 } from 'lucide-react';
 import { storage } from '../lib/storage';
@@ -193,8 +194,19 @@ export default function FlashcardsPage() {
         <div className="backface-hidden absolute inset-0 bg-[#1a1a24] border border-white/10 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
           <p className="text-white text-2xl font-semibold">{swapped ? card.definition : card.term}</p>
         </div>
-        <div className="backface-hidden rotate-y-180 absolute inset-0 bg-violet-900/30 border border-violet-500/30 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
-          <p className="text-white text-lg leading-relaxed">{swapped ? card.term : card.definition}</p>
+        <div className="backface-hidden rotate-y-180 absolute inset-0 bg-violet-900/30 border border-violet-500/30 rounded-2xl flex flex-col items-center justify-center p-8 text-center overflow-y-auto">
+          <ReactMarkdown
+            className="text-white text-lg leading-relaxed prose-invert w-full text-center"
+            components={{
+              p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+              strong: ({ children }) => <strong className="text-violet-300 font-semibold">{children}</strong>,
+              ul: ({ children }) => <ul className="text-left list-disc list-inside space-y-1 mt-1">{children}</ul>,
+              ol: ({ children }) => <ol className="text-left list-decimal list-inside space-y-1 mt-1">{children}</ol>,
+              li: ({ children }) => <li className="text-white/90">{children}</li>,
+            }}
+          >
+            {swapped ? card.term : card.definition}
+          </ReactMarkdown>
         </div>
       </div>
     </div>
