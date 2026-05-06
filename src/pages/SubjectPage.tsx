@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Layers, FileText, ChevronRight, Zap, Pencil, Check, X, MoreVertical } from 'lucide-react';
+import { Plus, Layers, FileText, ChevronLeft, ChevronRight, Zap, Pencil, Check, X, MoreVertical } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { generateFlashcards, generateSummary } from '../lib/ai';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
@@ -143,6 +143,14 @@ export default function SubjectPage() {
           <div className="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
+      <button
+        onClick={() => navigate('/')}
+        className="flex items-center gap-1 text-white/50 hover:text-white text-sm mb-5 transition-colors"
+      >
+        <ChevronLeft size={16} />
+        All Subjects
+      </button>
+
       <div className="flex items-center gap-3 mb-8">
         <div className={`w-1 h-10 rounded-full bg-gradient-to-b ${subject.color} shrink-0`} />
         <div>

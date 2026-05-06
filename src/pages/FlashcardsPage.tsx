@@ -271,6 +271,15 @@ export default function FlashcardsPage() {
       )}
 
       <div className="max-w-3xl mx-auto px-4 py-6">
+        {/* Back button */}
+        <button
+          onClick={() => navigate(`/subject/${id}`)}
+          className="flex items-center gap-1 text-white/50 hover:text-white text-sm mb-5 transition-colors"
+        >
+          <ChevronLeft size={16} />
+          Back
+        </button>
+
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-6">
           <div className="min-w-0">
