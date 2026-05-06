@@ -16,6 +16,7 @@ const COLORS = [
 
 export default function Home() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState('');
   const [color, setColor] = useState(COLORS[0]);
@@ -30,6 +31,7 @@ export default function Home() {
 
   const loadSubjects = useCallback(async () => {
     setSubjects(await storage.getSubjects());
+    setLoading(false);
   }, []);
 
   useEffect(() => { loadSubjects(); }, [loadSubjects]);
@@ -100,7 +102,11 @@ export default function Home() {
         </button>
       </div>
 
-      {subjects.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-24">
+          <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : subjects.length === 0 ? (
         <div className="text-center py-24">
           <BookOpen size={48} className="text-white/20 mx-auto mb-4" />
           <p className="text-white/40 text-lg mb-2">No subjects yet</p>

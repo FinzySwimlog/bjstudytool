@@ -129,7 +129,11 @@ export default function SubjectPage() {
     }
   }
 
-  if (!subject) return null;
+  if (!subject) return (
+    <div className="flex justify-center py-24">
+      <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'flashcards', label: 'Flashcards', icon: <Layers size={16} /> },

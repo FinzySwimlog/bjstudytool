@@ -174,7 +174,11 @@ export default function FlashcardsPage() {
     }
   }
 
-  if (!set) return null;
+  if (!set) return (
+    <div className="flex justify-center py-24">
+      <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
   const card = displayCards[currentIdx];
   const trickyCount = set.cards.filter((c) => c.tricky).length;
   const hasSavedQuiz = !!(set.quiz && set.quiz.length > 0);
