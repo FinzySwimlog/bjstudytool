@@ -195,18 +195,19 @@ export default function FlashcardsPage() {
           <p className="text-white text-2xl font-semibold">{swapped ? card.definition : card.term}</p>
         </div>
         <div className="backface-hidden rotate-y-180 absolute inset-0 bg-violet-900/30 border border-violet-500/30 rounded-2xl flex flex-col items-center justify-center p-8 text-center overflow-y-auto">
-          <ReactMarkdown
-            className="text-white text-lg leading-relaxed prose-invert w-full text-center"
-            components={{
-              p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
-              strong: ({ children }) => <strong className="text-violet-300 font-semibold">{children}</strong>,
-              ul: ({ children }) => <ul className="text-left list-disc list-inside space-y-1 mt-1">{children}</ul>,
-              ol: ({ children }) => <ol className="text-left list-decimal list-inside space-y-1 mt-1">{children}</ol>,
-              li: ({ children }) => <li className="text-white/90">{children}</li>,
-            }}
-          >
-            {swapped ? card.term : card.definition}
-          </ReactMarkdown>
+          <div className="text-white text-lg leading-relaxed w-full text-center">
+            <ReactMarkdown
+              components={{
+                p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                strong: ({ children }) => <strong className="text-violet-300 font-semibold">{children}</strong>,
+                ul: ({ children }) => <ul className="text-left list-disc list-inside space-y-1 mt-1">{children}</ul>,
+                ol: ({ children }) => <ol className="text-left list-decimal list-inside space-y-1 mt-1">{children}</ol>,
+                li: ({ children }) => <li className="text-white/90">{children}</li>,
+              }}
+            >
+              {swapped ? card.term : card.definition}
+            </ReactMarkdown>
+          </div>
         </div>
       </div>
     </div>
