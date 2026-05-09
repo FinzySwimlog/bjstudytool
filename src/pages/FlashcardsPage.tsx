@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, RotateCcw, Star, Trophy, Brain, Pencil, RefreshCw, Shuffle, Expand, Shrink, ArrowLeftRight, MoreVertical, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw, Star, Trophy, Brain, Pencil, RefreshCw, Shuffle, Expand, Shrink, ArrowLeftRight, MoreVertical, Trash2, MessageSquarePlus, Send, Check } from 'lucide-react';
 import { storage } from '../lib/storage';
-import { generateQuizQuestions } from '../lib/ai';
+import { generateQuizQuestions, editFlashcards } from '../lib/ai';
 import type { FlashcardSet, QuizQuestion, Flashcard } from '../types';
 
 type Mode = 'study' | 'quiz' | 'done';
@@ -33,6 +33,14 @@ export default function FlashcardsPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  type EditMsg = { role: 'user' | 'assistant'; content: string; cardsBefore?: number; cardsAfter?: number };
+  const [showEditChat, setShowEditChat] = useState(false);
+  const [editMessages, setEditMessages] = useState<EditMsg[]>([]);
+  const [editInput, setEditInput] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [pendingCards, setPendingCards] = useState<Flashcard[] | null>(null);
+  const editBottomRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('study');
   const [currentIdx, setCurrentIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -76,6 +84,45 @@ export default function FlashcardsPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    editBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [editMessages, editLoading]);
+
+  async function sendEditMessage() {
+    if (!editInput.trim() || editLoading || !set) return;
+    const userMessage = editInput.trim();
+    setEditInput('');
+    setEditMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    setEditLoading(true);
+    try {
+      const currentCards = pendingCards ?? set.cards;
+      const history = editMessages.map((m) => ({ role: m.role, content: m.content }));
+      const result = await editFlashcards(currentCards, history, userMessage);
+      const changed = JSON.stringify(result.cards) !== JSON.stringify(currentCards);
+      setEditMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: result.message,
+        cardsBefore: changed ? currentCards.length : undefined,
+        cardsAfter: changed ? result.cards.length : undefined,
+      }]);
+      if (changed) setPendingCards(result.cards);
+    } catch (e) {
+      setEditMessages((prev) => [...prev, { role: 'assistant', content: e instanceof Error ? e.message : 'Something went wrong' }]);
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  function applyEditChanges() {
+    if (!pendingCards || !set) return;
+    const updated = { ...set, cards: pendingCards };
+    saveSet(updated);
+    setDisplayCards(buildDisplayCards(pendingCards, shuffled, trickyOnly));
+    setCurrentIdx(0);
+    setPendingCards(null);
+    setEditMessages((prev) => [...prev, { role: 'assistant', content: `Changes applied — set now has ${pendingCards.length} card${pendingCards.length !== 1 ? 's' : ''}.` }]);
+  }
 
   async function deleteSet() {
     setConfirmDelete(false);
@@ -328,6 +375,12 @@ export default function FlashcardsPage() {
                 >
                   <Pencil size={15} /> Edit Set
                 </button>
+                <button
+                  onClick={() => { setEditMessages([]); setPendingCards(null); setEditInput(''); setShowEditChat(true); setShowMenu(false); }}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-sm text-violet-400 hover:text-violet-300 hover:bg-white/5 transition-colors"
+                >
+                  <MessageSquarePlus size={15} /> AI Edit
+                </button>
                 {mode === 'study' && (
                   <>
                     <button
@@ -469,6 +522,100 @@ export default function FlashcardsPage() {
           </div>
         )}
       </div>
+
+      {showEditChat && (
+        <div className="fixed inset-0 bg-[#0f0f13] z-50 flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+            <button
+              onClick={() => setShowEditChat(false)}
+              className="flex items-center gap-1 text-white/50 hover:text-white text-sm transition-colors"
+            >
+              <ChevronLeft size={16} /> Back
+            </button>
+            <div className="text-center">
+              <p className="text-white font-medium text-sm">AI Edit</p>
+              <p className="text-white/40 text-xs truncate max-w-[160px]">{set.title}</p>
+            </div>
+            {pendingCards ? (
+              <button
+                onClick={applyEditChanges}
+                className="flex items-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <Check size={13} /> Apply
+              </button>
+            ) : (
+              <div className="w-16" />
+            )}
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {editMessages.length === 0 && (
+              <div className="text-center py-16">
+                <MessageSquarePlus size={36} className="text-white/20 mx-auto mb-3" />
+                <p className="text-white/40 text-sm">Describe what you'd like to change</p>
+                <p className="text-white/25 text-xs mt-1 max-w-xs mx-auto">e.g. "consolidate the first 3 cards into one" or "add a card about the nucleus"</p>
+              </div>
+            )}
+            {editMessages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-violet-600 text-white' : 'bg-white/5 border border-white/10 text-white/90'}`}>
+                  <p className="text-sm leading-relaxed">{msg.content}</p>
+                  {msg.cardsBefore !== undefined && (
+                    <p className="text-xs mt-1.5 opacity-60">{msg.cardsBefore} → {msg.cardsAfter} cards</p>
+                  )}
+                </div>
+              </div>
+            ))}
+            {editLoading && (
+              <div className="flex justify-start">
+                <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl flex gap-1 items-center">
+                  <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            )}
+            <div ref={editBottomRef} />
+          </div>
+
+          {/* Input */}
+          <div className="shrink-0 border-t border-white/10 p-4">
+            {pendingCards && (
+              <div className="flex items-center justify-between bg-violet-600/15 border border-violet-500/30 rounded-xl px-3 py-2 mb-3">
+                <span className="text-violet-300 text-xs">
+                  {pendingCards.length !== set.cards.length
+                    ? `${set.cards.length} → ${pendingCards.length} cards pending`
+                    : 'Changes pending'}
+                </span>
+                <div className="flex gap-3">
+                  <button onClick={() => setPendingCards(null)} className="text-white/40 hover:text-white text-xs transition-colors">Discard</button>
+                  <button onClick={applyEditChanges} className="text-violet-300 hover:text-violet-200 text-xs font-medium transition-colors">Apply</button>
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2 items-end">
+              <textarea
+                value={editInput}
+                onChange={(e) => setEditInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendEditMessage(); } }}
+                placeholder="Ask AI to edit this set…"
+                rows={2}
+                disabled={editLoading}
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-violet-500 text-sm resize-none transition-colors"
+              />
+              <button
+                onClick={sendEditMessage}
+                disabled={editLoading || !editInput.trim()}
+                className="p-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl transition-colors shrink-0"
+              >
+                <Send size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <div

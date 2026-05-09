@@ -6,6 +6,10 @@
   path = "/api/generate-flashcards"
   function = "generate-flashcards"
 
+[[edge_functions]]
+  path = "/api/edit-flashcards"
+  function = "edit-flashcards"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

@@ -38,6 +38,33 @@ export async function generateFlashcards(content: string): Promise<Flashcard[]> 
   return JSON.parse(resultLine.slice(7));
 }
 
+export async function editFlashcards(
+  cards: Flashcard[],
+  history: { role: 'user' | 'assistant'; content: string }[],
+  userMessage: string,
+): Promise<{ message: string; cards: Flashcard[] }> {
+  const res = await fetch('/api/edit-flashcards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.get()}` },
+    body: JSON.stringify({ cards, history, userMessage }),
+  });
+  if (!res.ok) throw new Error(`AI request failed (${res.status})`);
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let accumulated = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    accumulated += decoder.decode(value, { stream: true });
+  }
+  const resultLine = accumulated.split('\n').find((l) => l.startsWith('RESULT:'));
+  const errorLine = accumulated.split('\n').find((l) => l.startsWith('ERROR:'));
+  if (errorLine) throw new Error(errorLine.slice(6));
+  if (!resultLine) throw new Error('No result received from server');
+  return JSON.parse(resultLine.slice(7));
+}
+
 export async function generateSummary(content: string): Promise<string> {
   const { text } = await api<{ text: string }>('generate-summary', { content });
   return text;
