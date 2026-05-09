@@ -24,56 +24,90 @@ function extractJSON(text: string): string {
 }
 
 export default async function (req: Request): Promise<Response> {
-  const headers = { 'Content-Type': 'application/json' };
+  const jsonHeaders = { 'Content-Type': 'application/json' };
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: jsonHeaders });
   }
-
   if (!await authorized(req.headers.get('authorization') ?? '')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: jsonHeaders });
   }
 
-  try {
-    const { content } = await req.json();
+  const { content } = await req.json();
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': Deno.env.get('ANTHROPIC_API_KEY') ?? '',
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4096,
-        messages: [{
-          role: 'user',
-          content: `Generate flashcards from the following study content. Return ONLY a valid JSON array of objects with "term" and "definition" fields. No explanation, just the JSON array.
+  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': Deno.env.get('ANTHROPIC_API_KEY') ?? '',
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      stream: true,
+      messages: [{
+        role: 'user',
+        content: `Generate flashcards from the following study content. Return ONLY a valid JSON array of objects with "term" and "definition" fields. No explanation, just the JSON array.
 
 Terms should be concise (a word or short phrase). Definitions can use markdown for clarity — use **bold** for key sub-terms or labels, and numbered or bullet lists when a concept has distinct steps or points. Keep definitions focused and not too long.
 
 Content:\n${content}`,
-        }],
-      }),
-    });
+      }],
+    }),
+  });
 
-    if (!res.ok) {
-      const err = await res.text();
-      return new Response(JSON.stringify({ error: `Anthropic error: ${err}` }), { status: 502, headers });
-    }
-
-    const data = await res.json();
-    const text: string = data.content?.[0]?.text ?? '';
-    const cards = JSON.parse(extractJSON(text)).map((c: { term: string; definition: string }) => ({
-      id: crypto.randomUUID(),
-      term: c.term,
-      definition: c.definition,
-      tricky: false,
-    }));
-
-    return new Response(JSON.stringify(cards), { headers });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers });
+  if (!anthropicRes.ok) {
+    const err = await anthropicRes.text();
+    return new Response(JSON.stringify({ error: err }), { status: 502, headers: jsonHeaders });
   }
+
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const reader = anthropicRes.body!.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (!data || data === '[DONE]') continue;
+            try {
+              const event = JSON.parse(data);
+              if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+                fullText += event.delta.text;
+                // Keepalive — prevents the edge function from being killed mid-stream
+                controller.enqueue(encoder.encode('\n'));
+              }
+            } catch { /* ignore parse errors on individual SSE lines */ }
+          }
+        }
+
+        const cards = JSON.parse(extractJSON(fullText)).map((c: { term: string; definition: string }) => ({
+          id: crypto.randomUUID(),
+          term: c.term,
+          definition: c.definition,
+          tricky: false,
+        }));
+        controller.enqueue(encoder.encode('RESULT:' + JSON.stringify(cards) + '\n'));
+      } catch (e) {
+        controller.enqueue(encoder.encode('ERROR:' + String(e) + '\n'));
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(stream, { headers: { 'Content-Type': 'text/plain' } });
 }

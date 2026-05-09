@@ -15,7 +15,27 @@ async function api<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function generateFlashcards(content: string): Promise<Flashcard[]> {
-  return api<Flashcard[]>('generate-flashcards', { content });
+  const res = await fetch('/api/generate-flashcards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.get()}` },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error(`AI request failed (${res.status})`);
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let accumulated = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    accumulated += decoder.decode(value, { stream: true });
+  }
+
+  const resultLine = accumulated.split('\n').find((l) => l.startsWith('RESULT:'));
+  const errorLine = accumulated.split('\n').find((l) => l.startsWith('ERROR:'));
+  if (errorLine) throw new Error(errorLine.slice(6));
+  if (!resultLine) throw new Error('No result received from server');
+  return JSON.parse(resultLine.slice(7));
 }
 
 export async function generateSummary(content: string): Promise<string> {
