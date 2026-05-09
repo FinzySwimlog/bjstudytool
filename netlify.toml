@@ -5,6 +5,10 @@
 [functions]
   timeout = 26
 
+[[edge_functions]]
+  path = "/api/generate-flashcards"
+  function = "generate-flashcards"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
