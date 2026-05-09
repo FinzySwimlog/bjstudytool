@@ -19,8 +19,11 @@ async function authorized(authHeader: string): Promise<boolean> {
 }
 
 function extractJSON(text: string): string {
-  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  return match ? match[1].trim() : text.trim();
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/s);
+  if (fenceMatch) return fenceMatch[1].trim();
+  const arrMatch = text.match(/\[[\s\S]*\]/s);
+  if (arrMatch) return arrMatch[0].trim();
+  return text.trim();
 }
 
 export default async function (req: Request): Promise<Response> {
