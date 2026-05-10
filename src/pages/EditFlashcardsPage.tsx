@@ -25,6 +25,8 @@ export default function EditFlashcardsPage() {
   const [newImage, setNewImage] = useState<string | undefined>(undefined);
   const [newUploading, setNewUploading] = useState(false);
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   const newFileRef = useRef<HTMLInputElement>(null);
   const editFileRef = useRef<HTMLInputElement>(null);
 
@@ -98,6 +100,7 @@ export default function EditFlashcardsPage() {
     if (!set) return;
     persist({ ...set, cards: set.cards.filter((c) => c.id !== cardId) });
     if (editingId === cardId) setEditingId(null);
+    setConfirmDeleteId(null);
   }
 
   function addCardManually() {
@@ -408,7 +411,7 @@ export default function EditFlashcardsPage() {
                     <Pencil size={14} />
                   </button>
                   <button
-                    onClick={() => deleteCard(card.id)}
+                    onClick={() => setConfirmDeleteId(card.id)}
                     className="p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
                     title="Delete"
                   >
@@ -420,6 +423,32 @@ export default function EditFlashcardsPage() {
           </div>
         ))}
       </div>
+
+      {confirmDeleteId && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={(e) => e.target === e.currentTarget && setConfirmDeleteId(null)}
+        >
+          <div className="bg-[#1a1a24] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+            <h2 className="text-white font-semibold text-lg mb-2">Delete card?</h2>
+            <p className="text-white/50 text-sm mb-6">This card will be permanently removed from the set.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/60 hover:text-white transition-all text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteCard(confirmDeleteId)}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium text-sm transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
