@@ -242,12 +242,12 @@ export default function FlashcardsPage() {
           <p className="text-white text-2xl font-semibold">{swapped ? card.definition : card.term}</p>
         </div>
         <div className="backface-hidden rotate-y-180 absolute inset-0 bg-violet-900/30 border border-violet-500/30 rounded-2xl flex flex-col items-center justify-center p-8 text-center overflow-y-auto">
-          {card.image && !swapped && (
-            <img
-              src={card.image}
-              alt=""
-              className="max-h-28 max-w-full rounded-lg object-contain mb-4"
-            />
+          {!!card.images?.length && !swapped && (
+            <div className="flex flex-wrap justify-center gap-2 mb-4">
+              {card.images.map((url, i) => (
+                <img key={i} src={url} alt="" className="max-h-28 max-w-full rounded-lg object-contain" />
+              ))}
+            </div>
           )}
           <div className="text-white text-lg leading-relaxed w-full text-center">
             <ReactMarkdown

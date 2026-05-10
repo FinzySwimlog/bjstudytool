@@ -15,14 +15,14 @@ export default function EditFlashcardsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTerm, setEditTerm] = useState('');
   const [editDef, setEditDef] = useState('');
-  const [editImage, setEditImage] = useState<string | undefined>(undefined);
+  const [editImages, setEditImages] = useState<string[]>([]);
   const [editUploading, setEditUploading] = useState(false);
 
   // Add card manually
   const [showAddCard, setShowAddCard] = useState(false);
   const [newTerm, setNewTerm] = useState('');
   const [newDef, setNewDef] = useState('');
-  const [newImage, setNewImage] = useState<string | undefined>(undefined);
+  const [newImages, setNewImages] = useState<string[]>([]);
   const [newUploading, setNewUploading] = useState(false);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export default function EditFlashcardsPage() {
     setEditingId(card.id);
     setEditTerm(card.term);
     setEditDef(card.definition);
-    setEditImage(card.image);
+    setEditImages(card.images ?? []);
   }
 
   function saveEdit() {
@@ -61,7 +61,7 @@ export default function EditFlashcardsPage() {
     persist({
       ...set,
       cards: set.cards.map((c) =>
-        c.id === editingId ? { ...c, term: editTerm.trim(), definition: editDef.trim(), image: editImage } : c
+        c.id === editingId ? { ...c, term: editTerm.trim(), definition: editDef.trim(), images: editImages.length ? editImages : undefined } : c
       ),
     });
     setEditingId(null);
@@ -69,14 +69,14 @@ export default function EditFlashcardsPage() {
 
   function cancelEdit() {
     setEditingId(null);
-    setEditImage(undefined);
+    setEditImages([]);
   }
 
   async function handleNewImagePick(file: File) {
     setNewUploading(true);
     try {
       const url = await uploadToImageKit(file);
-      setNewImage(url);
+      setNewImages((prev) => [...prev, url]);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Upload failed');
     } finally {
@@ -88,7 +88,7 @@ export default function EditFlashcardsPage() {
     setEditUploading(true);
     try {
       const url = await uploadToImageKit(file);
-      setEditImage(url);
+      setEditImages((prev) => [...prev, url]);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Upload failed');
     } finally {
@@ -110,12 +110,12 @@ export default function EditFlashcardsPage() {
       term: newTerm.trim(),
       definition: newDef.trim(),
       tricky: false,
-      image: newImage,
+      images: newImages.length ? newImages : undefined,
     };
     persist({ ...set, cards: [...set.cards, card] });
     setNewTerm('');
     setNewDef('');
-    setNewImage(undefined);
+    setNewImages([]);
     setShowAddCard(false);
   }
 
@@ -204,7 +204,7 @@ export default function EditFlashcardsPage() {
           </div>
           {/* Image picker */}
           <div className="mb-4">
-            <label className="text-white/50 text-xs mb-1.5 block">Image (optional)</label>
+            <label className="text-white/50 text-xs mb-1.5 block">Images (optional)</label>
             <input
               ref={newFileRef}
               type="file"
@@ -212,30 +212,31 @@ export default function EditFlashcardsPage() {
               className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleNewImagePick(f); e.target.value = ''; }}
             />
-            {newImage ? (
-              <div className="relative w-32 h-24 rounded-lg overflow-hidden border border-white/10">
-                <img src={newImage} alt="" className="w-full h-full object-cover" />
-                <button
-                  onClick={() => setNewImage(undefined)}
-                  className="absolute top-1 right-1 p-0.5 bg-black/70 rounded-full text-white/80 hover:text-white"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ) : (
+            <div className="flex flex-wrap gap-2">
+              {newImages.map((url, i) => (
+                <div key={i} className="relative w-24 h-20 rounded-lg overflow-hidden border border-white/10 shrink-0">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => setNewImages((prev) => prev.filter((_, idx) => idx !== i))}
+                    className="absolute top-1 right-1 p-0.5 bg-black/70 rounded-full text-white/80 hover:text-white"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
               <button
                 onClick={() => newFileRef.current?.click()}
                 disabled={newUploading}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 text-sm transition-all disabled:opacity-40"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 text-sm transition-all disabled:opacity-40 h-20"
               >
                 <ImagePlus size={15} />
                 {newUploading ? 'Uploading...' : 'Add image'}
               </button>
-            )}
+            </div>
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => { setShowAddCard(false); setNewImage(undefined); }}
+              onClick={() => { setShowAddCard(false); setNewImages([]); }}
               className="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white text-sm transition-all"
             >
               Cancel
@@ -341,7 +342,7 @@ export default function EditFlashcardsPage() {
                 </div>
                 {/* Image picker in edit form */}
                 <div className="mb-3">
-                  <label className="text-white/50 text-xs mb-1.5 block">Image (optional)</label>
+                  <label className="text-white/50 text-xs mb-1.5 block">Images (optional)</label>
                   <input
                     ref={editFileRef}
                     type="file"
@@ -349,26 +350,27 @@ export default function EditFlashcardsPage() {
                     className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) handleEditImagePick(f); e.target.value = ''; }}
                   />
-                  {editImage ? (
-                    <div className="relative w-28 h-20 rounded-lg overflow-hidden border border-white/10">
-                      <img src={editImage} alt="" className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => setEditImage(undefined)}
-                        className="absolute top-1 right-1 p-0.5 bg-black/70 rounded-full text-white/80 hover:text-white"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {editImages.map((url, i) => (
+                      <div key={i} className="relative w-24 h-20 rounded-lg overflow-hidden border border-white/10 shrink-0">
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setEditImages((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="absolute top-1 right-1 p-0.5 bg-black/70 rounded-full text-white/80 hover:text-white"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
                     <button
                       onClick={() => editFileRef.current?.click()}
                       disabled={editUploading}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 text-sm transition-all disabled:opacity-40"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 text-sm transition-all disabled:opacity-40 h-20"
                     >
                       <ImagePlus size={15} />
                       {editUploading ? 'Uploading...' : 'Add image'}
                     </button>
-                  )}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -397,8 +399,12 @@ export default function EditFlashcardsPage() {
                   <div>
                     <p className="text-white/40 text-xs mb-0.5">Definition</p>
                     <p className="text-white/80 text-sm leading-snug">{card.definition}</p>
-                    {card.image && (
-                      <img src={card.image} alt="" className="mt-2 h-14 w-auto rounded object-cover border border-white/10" />
+                    {!!card.images?.length && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {card.images.map((url, i) => (
+                          <img key={i} src={url} alt="" className="h-12 w-auto rounded object-cover border border-white/10" />
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>

@@ -11,7 +11,7 @@ export interface Flashcard {
   term: string;
   definition: string;
   tricky: boolean;
-  image?: string;
+  images?: string[];
 }
 
 export interface QuizQuestion {
