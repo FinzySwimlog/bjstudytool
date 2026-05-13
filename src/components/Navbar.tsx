@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Settings, BookOpen } from 'lucide-react';
+import TimerWidget from './TimerWidget';
 
 export default function Navbar() {
-
   return (
     <nav className="flex items-center justify-between px-6 py-4 border-b border-white/10">
       <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
         <BookOpen size={22} className="text-violet-400" />
       </Link>
+      <TimerWidget />
       <div className="flex items-center gap-3">
         <Link
           to="/settings"
