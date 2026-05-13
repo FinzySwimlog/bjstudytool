@@ -33,6 +33,7 @@ export default function FlashcardsPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const backFaceRef = useRef<HTMLDivElement>(null);
 
   type EditMsg = { role: 'user' | 'assistant'; content: string; cardsBefore?: number; cardsAfter?: number };
   const [showEditChat, setShowEditChat] = useState(false);
@@ -88,6 +89,10 @@ export default function FlashcardsPage() {
   useEffect(() => {
     editBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [editMessages, editLoading]);
+
+  useEffect(() => {
+    backFaceRef.current?.scrollTo({ top: 0 });
+  }, [flipped, currentIdx]);
 
   async function sendEditMessage() {
     if (!editInput.trim() || editLoading || !set) return;
@@ -241,7 +246,7 @@ export default function FlashcardsPage() {
         <div className="backface-hidden absolute inset-0 bg-[#1a1a24] border border-white/10 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
           <p className="text-white text-2xl font-semibold">{swapped ? card.definition : card.term}</p>
         </div>
-        <div className="backface-hidden rotate-y-180 absolute inset-0 bg-violet-900/30 border border-violet-500/30 rounded-2xl flex flex-col items-center justify-center p-8 text-center overflow-y-auto">
+        <div ref={backFaceRef} className="backface-hidden rotate-y-180 absolute inset-0 bg-violet-900/30 border border-violet-500/30 rounded-2xl flex flex-col items-center justify-center p-8 text-center overflow-y-auto">
           {!!card.images?.length && !swapped && (
             <div className="flex flex-wrap justify-center gap-2 mb-4">
               {card.images.map((url, i) => (
